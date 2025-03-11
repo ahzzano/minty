@@ -60,6 +60,7 @@ impl Compiler for MIPS {
     }
     fn convert_instruction(&self, inst: &str) -> Option<u32> {
         // label
+        println!("INST:{inst}");
         if inst.contains(':') || inst.contains('.') || inst.contains(';') {
             return None;
         }
@@ -98,7 +99,43 @@ impl Compiler for MIPS {
 
                 Some(res)
             }
-            _ => None,
+            "addi" => {
+                let opcode = match inst {
+                    "addi" => 0x8,
+                    _ => 0,
+                } << 26;
+
+                let regs: Vec<&str> = regs.trim().split(' ').collect();
+                let rt = regs[0].trim().replace(",", "");
+                let rs = regs[1].trim().replace(",", "");
+                let mut imm = regs[2].trim().replace(",", "");
+                println!("{inst}{regs:?}");
+
+                let rt = self.convert_register_id(&rt).unwrap() << 16;
+                let rs = self.convert_register_id(&rs).unwrap() << 21;
+
+                let sign = if let Some(value) = imm.strip_prefix("-") {
+                    imm = value.to_string();
+                    -1
+                } else {
+                    1
+                };
+
+                let imm: i32 = if let Some(value) = imm.strip_prefix("0x") {
+                    i32::from_str_radix(value, 16).unwrap()
+                } else {
+                    imm.parse().unwrap()
+                } * sign;
+
+                let imm = imm & 0x0000FFFF;
+                println!("HIT");
+
+                Some(opcode | rt | rs | imm as u32)
+            }
+            _ => {
+                println!("NONE OFUND");
+                None
+            }
         }
     }
 }
@@ -113,10 +150,35 @@ mod test {
     fn test_add_assembler() {
         let mips = MIPS::default();
 
-        let eq = mips.convert_instruction("add $a0, $a1, $a2").unwrap();
-        assert_eq!(eq, 0x00A62020);
+        let eq = mips.convert_instruction("add $a0, $a1, $a2");
+        assert!(eq.is_some());
+        assert_eq!(eq.unwrap(), 0x00A62020);
 
-        let eq = mips.convert_instruction("add $a0 $a1 $a2").unwrap();
-        assert_eq!(eq, 0x00A62020);
+        let eq = mips.convert_instruction("add $a0 $a1 $a2");
+        assert!(eq.is_some());
+        assert_eq!(eq.unwrap(), 0x00A62020);
+    }
+
+    #[test]
+    fn test_addi_assembler() {
+        let mips = MIPS::default();
+
+        let eq = mips.convert_instruction("addi $a0, $a1, 0xFFFF");
+        assert!(eq.is_some());
+
+        if let Some(inst) = eq {
+            assert_eq!(inst, 0x20A4FFFF);
+        }
+        let eq = mips.convert_instruction("addi $a0, $a1, 50");
+        assert!(eq.is_some());
+
+        if let Some(inst) = eq {
+            assert_eq!(inst, 0x20A40032);
+        }
+        let eq = mips.convert_instruction("addi $a0, $a1, -50");
+        assert!(eq.is_some());
+        if let Some(inst) = eq {
+            assert_eq!(inst, 0x20A4FFCE);
+        }
     }
 }
