@@ -71,7 +71,7 @@ impl Compiler for MIPS {
         let (inst, regs) = inst.trim().split_once(" ").unwrap();
 
         match inst.trim() {
-            "add" | "sub" => {
+            "add" | "addu" | "sub" | "subu" | "or" | "nor" | "and" => {
                 let reg: Vec<&str> = regs.trim().split(' ').collect();
                 let rd = reg[0].trim().replace(',', "");
                 let rs = reg[1].trim().replace(',', "");
@@ -79,7 +79,12 @@ impl Compiler for MIPS {
 
                 let operation = match inst {
                     "add" => 0x20,
+                    "addu" => 0x21,
                     "sub" => 0x22,
+                    "subu" => 0x23,
+                    "or" => 0x25,
+                    "nor" => 0x27,
+                    "and" => 0x24,
                     _ => 0,
                 };
 
