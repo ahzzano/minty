@@ -11,7 +11,7 @@ fn main() {
     let command = &args[1];
     let mips = compiler::mips::MIPS::default();
 
-    let _ = mips.write_bin_file(vec![0x5544, 0x1233]);
+    // let _ = mips.write_bin_file(vec![0x5544, 0x1233]);
 
     match command.as_str() {
         "run" => {}
@@ -19,6 +19,9 @@ fn main() {
             println!("Compiling file");
             let fname = &args[2];
             let contents = fs::read_to_string(fname).expect("No file found");
+            println!("{contents}");
+
+            mips.compile_file(contents);
         }
         _ => {
             println!("Hello");
