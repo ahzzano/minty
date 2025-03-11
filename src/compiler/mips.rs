@@ -11,7 +11,11 @@ impl Compiler for MIPS {
         let mut to_out: Vec<u32> = Vec::new();
 
         for i in lines {
-            to_out.push(self.convert_instruction(i).unwrap());
+            println!("{i}");
+            let inst = self.convert_instruction(i);
+            if let Some(inst) = inst {
+                to_out.push(inst);
+            }
         }
 
         self.write_bin_file(to_out).unwrap();
@@ -56,12 +60,15 @@ impl Compiler for MIPS {
     }
     fn convert_instruction(&self, inst: &str) -> Option<u32> {
         // label
-        if inst.contains(':') {
-            todo!()
+        if inst.contains(':') || inst.contains('.') || inst.contains(';') {
+            return None;
         }
 
-        let (inst, regs) = inst.split_once(' ').expect("Syntax error");
-        println!("{inst}");
+        if inst.is_empty() {
+            return None;
+        }
+
+        let (inst, regs) = inst.trim().split_once(" ").unwrap();
 
         match inst.trim() {
             "add" | "sub" => {
@@ -82,7 +89,7 @@ impl Compiler for MIPS {
                 let rt = self.convert_register_id(&rt).unwrap() << 16;
                 let rs = self.convert_register_id(&rs).unwrap() << 21;
 
-                let res = (rs | rd | rt) | 0x20;
+                let res = (rs | rd | rt) | operation;
 
                 Some(res)
             }
