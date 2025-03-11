@@ -6,7 +6,17 @@ pub struct MIPS {
 }
 
 impl Compiler for MIPS {
-    fn compile_file(&self, code: String) {}
+    fn compile_file(&self, code: String) {
+        let lines = code.split('\n');
+        let mut to_out: Vec<u32> = Vec::new();
+
+        for i in lines {
+            to_out.push(self.convert_instruction(i).unwrap());
+        }
+
+        self.write_bin_file(to_out).unwrap();
+    }
+
     fn convert_register_id(&self, reg: &str) -> Option<u32> {
         match reg {
             "$0" | "$zero" | "0" | "zero" => Some(0),
