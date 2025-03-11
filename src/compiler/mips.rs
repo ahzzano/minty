@@ -51,23 +51,50 @@ impl Compiler for MIPS {
         }
 
         let (inst, regs) = inst.split_once(' ').expect("Syntax error");
+        println!("{inst}");
 
         match inst.trim() {
-            "add" => {
-                let opcode = 0x000;
-
+            "add" | "sub" => {
                 let reg: Vec<&str> = regs.trim().split(' ').collect();
-                let rd = reg[0];
-                let rs = reg[1];
-                let rt = reg[2];
+                let rd = reg[0].trim().replace(',', "");
+                let rs = reg[1].trim().replace(',', "");
+                let rt = reg[2].trim().replace(',', "");
 
-                let rd = self.convert_register_id(rd);
-                let rs = self.convert_register_id(rs);
-                let rt = self.convert_register_id(rt);
+                let operation = match inst {
+                    "add" => 0x20,
+                    "sub" => 0x22,
+                    _ => 0,
+                };
 
-                Some(0x000)
+                println!("{rs} {rd} {rt} {reg:?}");
+
+                let rd = self.convert_register_id(&rd).unwrap() << 11;
+                let rt = self.convert_register_id(&rt).unwrap() << 16;
+                let rs = self.convert_register_id(&rs).unwrap() << 21;
+
+                let res = (rs | rd | rt) | 0x20;
+
+                Some(res)
             }
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::compiler::Compiler;
+
+    use super::MIPS;
+
+    #[test]
+    fn test_add_assembler() {
+        let mips = MIPS::default();
+
+        let eq = mips.convert_instruction("add $a0, $a1, $a2").unwrap();
+        assert_eq!(eq, 0x00A62020);
+
+        let eq = mips.convert_instruction("add $a0 $a1 $a2").unwrap();
+        assert_eq!(eq, 0x00A62020);
     }
 }
