@@ -99,9 +99,12 @@ impl Compiler for MIPS {
 
                 Some(res)
             }
-            "addi" => {
+            "addi" | "addiu" | "andi" | "ori" => {
                 let opcode = match inst {
                     "addi" => 0x8,
+                    "addiu" => 0x9,
+                    "andi" => 0xc,
+                    "ori" => 0xd,
                     _ => 0,
                 } << 26;
 
