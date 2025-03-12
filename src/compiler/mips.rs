@@ -182,6 +182,42 @@ impl Compiler for MIPS {
 
                 Some(opcode | rt | rs | label_offset)
             }
+            "sw" | "lw" => {
+                let regs: Vec<&str> = regs.trim().split(" ").collect();
+
+                let opcode = match inst {
+                    "lw" => 0x23,
+                    "sw" => 0x2b,
+                    _ => 0,
+                } << 26;
+
+                let rt = regs[0].trim().replace(",", "");
+                let rt = self.convert_register_id(&rt).unwrap() << 16;
+
+                let mut offset = 0;
+
+                let rs = if regs[1].trim().starts_with("(") {
+                    let reg = regs[1]
+                        .strip_prefix("(")
+                        .unwrap()
+                        .strip_suffix(")")
+                        .unwrap();
+
+                    self.convert_register_id(reg).expect("Invalid format")
+                } else {
+                    let (value, reg) = regs[1].split_once("(").unwrap();
+                    let reg = if reg.ends_with(")") {
+                        reg.strip_suffix(")").unwrap()
+                    } else {
+                        reg
+                    };
+                    offset = value.parse().expect("Invalid offset value for the code");
+                    self.convert_register_id(reg)
+                        .unwrap_or_else(|| panic!("Wrong moment '{reg}'"))
+                } << 21;
+
+                Some(opcode | rt | rs | offset as u32)
+            }
             _ => None,
         }
     }
@@ -243,6 +279,21 @@ mod test {
 
         if let Some(inst) = eq {
             assert_eq!(inst, 0x10A400C8);
+        }
+    }
+
+    #[test]
+    fn test_sw_assembler() {
+        let mips = MIPS::default();
+
+        let eq = mips.convert_instruction("sw $t0, ($t1)", 0);
+        if let Some(inst) = eq {
+            assert_eq!(inst, 0xad280000, "{inst:0b}");
+        }
+
+        let eq = mips.convert_instruction("sw $t0, 50($t1)", 0);
+        if let Some(inst) = eq {
+            assert_eq!(inst, 0xad280032);
         }
     }
 }
