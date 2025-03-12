@@ -5,7 +5,6 @@ use super::Compiler;
 #[derive(Debug, Default)]
 pub struct MIPS {
     status: u32,
-    // labels: Vec<(String, usize)>,
     labels: HashMap<String, usize>,
 }
 
@@ -182,11 +181,16 @@ impl Compiler for MIPS {
 
                 Some(opcode | rt | rs | label_offset)
             }
-            "sw" | "lw" => {
+            "sw" | "sh" | "sb" | "lw" | "lhu" | "lbu" | "lui" => {
                 let regs: Vec<&str> = regs.trim().split(" ").collect();
 
                 let opcode = match inst {
                     "lw" => 0x23,
+                    "lbu" => 0x24,
+                    "lhu" => 0x25,
+                    "lui" => 0xf,
+                    "sb" => 0x28,
+                    "sh" => 0x29,
                     "sw" => 0x2b,
                     _ => 0,
                 } << 26;
@@ -294,6 +298,16 @@ mod test {
         let eq = mips.convert_instruction("sw $t0, 50($t1)", 0);
         if let Some(inst) = eq {
             assert_eq!(inst, 0xad280032);
+        }
+    }
+
+    #[test]
+    fn test_lw_assembler() {
+        let mips = MIPS::default();
+
+        let eq = mips.convert_instruction("lw $t0, 10($t1)", 0);
+        if let Some(inst) = eq {
+            assert_eq!(inst, 0x8d28000a, "{inst:0b}");
         }
     }
 }
