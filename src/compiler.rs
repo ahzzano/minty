@@ -3,9 +3,9 @@ use std::{error::Error, fs, io::Write};
 pub mod mips;
 
 pub trait Compiler {
-    fn compile_file(&self, code: String);
+    fn compile_file(&mut self, code: String);
 
-    fn convert_instruction(&self, inst: &str) -> Option<u32>;
+    fn convert_instruction(&self, inst: &str, offset: usize) -> Option<u32>;
     fn convert_register_id(&self, reg: &str) -> Option<u32>;
 
     fn write_bin_file(&self, instructions: Vec<u32>) -> Result<(), std::io::Error> {
