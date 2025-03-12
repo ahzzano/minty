@@ -9,7 +9,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     let command = &args[1];
-    let mips = compiler::mips::MIPS::default();
+    let mut mips = compiler::mips::MIPS::default();
 
     // let _ = mips.write_bin_file(vec![0x5544, 0x1233]);
 

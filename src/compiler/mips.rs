@@ -1,18 +1,28 @@
+use std::collections::HashMap;
+
 use super::Compiler;
 
 #[derive(Debug, Default)]
 pub struct MIPS {
     status: u32,
+    // labels: Vec<(String, usize)>,
+    labels: HashMap<String, usize>,
 }
 
 impl Compiler for MIPS {
-    fn compile_file(&self, code: String) {
+    fn compile_file(&mut self, code: String) {
         let lines = code.split('\n');
         let mut to_out: Vec<u32> = Vec::new();
 
-        for i in lines {
-            println!("{i}");
-            let inst = self.convert_instruction(i);
+        for (ind, i) in lines.enumerate() {
+            if let Some(label) = i.strip_suffix(":") {
+                self.labels.insert(label.to_string(), ind);
+                continue;
+            }
+
+            let inst = self.convert_instruction(i, ind);
+            println!("{inst:?}");
+
             if let Some(inst) = inst {
                 to_out.push(inst);
             }
@@ -58,10 +68,12 @@ impl Compiler for MIPS {
             _ => None,
         }
     }
-    fn convert_instruction(&self, inst: &str) -> Option<u32> {
-        // label
-        println!("INST:{inst}");
-        if inst.contains(':') || inst.contains('.') || inst.contains(';') {
+    fn convert_instruction(&self, inst: &str, offset: usize) -> Option<u32> {
+        if inst.contains(':') || inst.contains('.') {
+            return None;
+        }
+
+        if inst.starts_with(";") || inst.starts_with("#") {
             return None;
         }
 
@@ -70,6 +82,12 @@ impl Compiler for MIPS {
         }
 
         let (inst, regs) = inst.trim().split_once(" ").unwrap();
+        let (regs, _) = if regs.contains(";") {
+            regs.trim().split_once(";").unwrap()
+        } else {
+            (regs, "")
+        };
+        let regs = regs.trim();
 
         match inst.trim() {
             "add" | "addu" | "sub" | "subu" | "or" | "nor" | "and" => {
@@ -88,8 +106,6 @@ impl Compiler for MIPS {
                     "and" => 0x24,
                     _ => 0,
                 };
-
-                println!("{rs} {rd} {rt} {reg:?}");
 
                 let rd = self.convert_register_id(&rd).unwrap() << 11;
                 let rt = self.convert_register_id(&rt).unwrap() << 16;
@@ -111,8 +127,8 @@ impl Compiler for MIPS {
                 let regs: Vec<&str> = regs.trim().split(' ').collect();
                 let rt = regs[0].trim().replace(",", "");
                 let rs = regs[1].trim().replace(",", "");
+
                 let mut imm = regs[2].trim().replace(",", "");
-                println!("{inst}{regs:?}");
 
                 let rt = self.convert_register_id(&rt).unwrap() << 16;
                 let rs = self.convert_register_id(&rs).unwrap() << 21;
@@ -131,14 +147,33 @@ impl Compiler for MIPS {
                 } * sign;
 
                 let imm = imm & 0x0000FFFF;
-                println!("HIT");
 
                 Some(opcode | rt | rs | imm as u32)
             }
-            _ => {
-                println!("NONE OFUND");
-                None
+            "beq" | "bne" => {
+                let opcode = match inst {
+                    "beq" => 0x4,
+                    "bne" => 0x5,
+                    _ => 0,
+                } << 26;
+
+                let regs: Vec<&str> = regs.trim().split(' ').collect();
+
+                let rt = regs[0].trim().replace(",", "");
+                let rs = regs[1].trim().replace(",", "");
+                let label = regs[2].trim().replace(",", "");
+
+                let rt = self.convert_register_id(&rt).unwrap() << 16;
+                let rs = self.convert_register_id(&rs).unwrap() << 21;
+
+                let label_addr = self.labels.get(&label);
+                assert!(label_addr.is_some());
+
+                let label_offset: i32 = *label_addr.unwrap() as i32;
+
+                Some(opcode | rt | rs | label_offset as u32)
             }
+            _ => None,
         }
     }
 }
@@ -153,11 +188,11 @@ mod test {
     fn test_add_assembler() {
         let mips = MIPS::default();
 
-        let eq = mips.convert_instruction("add $a0, $a1, $a2");
+        let eq = mips.convert_instruction("add $a0, $a1, $a2", 0);
         assert!(eq.is_some());
         assert_eq!(eq.unwrap(), 0x00A62020);
 
-        let eq = mips.convert_instruction("add $a0 $a1 $a2");
+        let eq = mips.convert_instruction("add $a0 $a1 $a2", 0);
         assert!(eq.is_some());
         assert_eq!(eq.unwrap(), 0x00A62020);
     }
@@ -166,22 +201,33 @@ mod test {
     fn test_addi_assembler() {
         let mips = MIPS::default();
 
-        let eq = mips.convert_instruction("addi $a0, $a1, 0xFFFF");
+        let eq = mips.convert_instruction("addi $a0, $a1, 0xFFFF", 0);
         assert!(eq.is_some());
 
         if let Some(inst) = eq {
             assert_eq!(inst, 0x20A4FFFF);
         }
-        let eq = mips.convert_instruction("addi $a0, $a1, 50");
+        let eq = mips.convert_instruction("addi $a0, $a1, 50", 0);
         assert!(eq.is_some());
 
         if let Some(inst) = eq {
             assert_eq!(inst, 0x20A40032);
         }
-        let eq = mips.convert_instruction("addi $a0, $a1, -50");
+        let eq = mips.convert_instruction("addi $a0, $a1, -50", 0);
         assert!(eq.is_some());
         if let Some(inst) = eq {
             assert_eq!(inst, 0x20A4FFCE);
+        }
+    }
+
+    #[test]
+    fn test_beq_assembler() {
+        let mut mips = MIPS::default();
+        mips.labels.insert("nonon_jakuzure".to_string(), 100);
+
+        let eq = mips.convert_instruction("beq $a0, $a1, nonon_jakuzure", 1);
+        if let Some(inst) = eq {
+            assert_eq!(inst, 0x10A40064);
         }
     }
 }
