@@ -102,7 +102,16 @@ impl Compiler for MIPS {
             return None;
         }
 
+        if inst.trim().split_once(" ").is_none() {
+            if inst == "syscall" {
+                return Some(0b001100);
+            } else {
+                return None;
+            }
+        }
+
         let (inst, regs) = inst.trim().split_once(" ").unwrap();
+
         let (regs, _) = if regs.contains(";") {
             regs.trim().split_once(";").unwrap()
         } else {
@@ -223,6 +232,7 @@ impl Compiler for MIPS {
                 Some(opcode | rt | rs | offset as u32)
             }
             _ => None,
+            "syscall" => Some(0b001100),
         }
     }
 }
