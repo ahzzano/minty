@@ -9,6 +9,28 @@ pub struct MIPS {
     labels: HashMap<String, usize>,
 }
 
+impl MIPS {
+    fn convert_immediate(&self, imm: &str) -> u32 {
+        let mut imm = imm;
+        let sign = if let Some(value) = imm.strip_prefix("-") {
+            imm = value;
+            -1
+        } else {
+            1
+        };
+
+        let imm: i32 = if let Some(value) = imm.strip_prefix("0x") {
+            i32::from_str_radix(value, 16).unwrap()
+        } else {
+            imm.parse().unwrap()
+        } * sign;
+
+        let imm = imm & 0x0000FFFF;
+
+        imm as u32
+    }
+}
+
 impl Compiler for MIPS {
     fn compile_file(&mut self, code: String) {
         let lines = code.split('\n');
@@ -128,27 +150,14 @@ impl Compiler for MIPS {
                 let rt = regs[0].trim().replace(",", "");
                 let rs = regs[1].trim().replace(",", "");
 
-                let mut imm = regs[2].trim().replace(",", "");
+                let imm = regs[2].trim().replace(",", "");
 
                 let rt = self.convert_register_id(&rt).unwrap() << 16;
                 let rs = self.convert_register_id(&rs).unwrap() << 21;
 
-                let sign = if let Some(value) = imm.strip_prefix("-") {
-                    imm = value.to_string();
-                    -1
-                } else {
-                    1
-                };
+                let imm = self.convert_immediate(&imm);
 
-                let imm: i32 = if let Some(value) = imm.strip_prefix("0x") {
-                    i32::from_str_radix(value, 16).unwrap()
-                } else {
-                    imm.parse().unwrap()
-                } * sign;
-
-                let imm = imm & 0x0000FFFF;
-
-                Some(opcode | rt | rs | imm as u32)
+                Some(opcode | rt | rs | imm)
             }
             "beq" | "bne" => {
                 let opcode = match inst {
