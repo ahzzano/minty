@@ -169,9 +169,9 @@ impl Compiler for MIPS {
                 let label_addr = self.labels.get(&label);
                 assert!(label_addr.is_some());
 
-                let label_offset: i32 = *label_addr.unwrap() as i32;
+                let label_offset: u32 = *label_addr.unwrap() as u32;
 
-                Some(opcode | rt | rs | label_offset as u32)
+                Some(opcode | rt | rs | label_offset)
             }
             _ => None,
         }
@@ -224,10 +224,16 @@ mod test {
     fn test_beq_assembler() {
         let mut mips = MIPS::default();
         mips.labels.insert("nonon_jakuzure".to_string(), 100);
+        mips.labels.insert("ellen_joe".to_string(), 200);
 
         let eq = mips.convert_instruction("beq $a0, $a1, nonon_jakuzure", 1);
         if let Some(inst) = eq {
             assert_eq!(inst, 0x10A40064);
+        }
+        let eq = mips.convert_instruction("beq $a0, $a1, ellen_joe", 150);
+
+        if let Some(inst) = eq {
+            assert_eq!(inst, 0x10A400C8);
         }
     }
 }
